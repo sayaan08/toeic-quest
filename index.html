@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#15152b">
-<title>TOEIC QUEST v0.1</title>
+<title>TOEIC QUEST v0.3</title>
 <style>
 :root{--bg:#101124;--card:#1b1d38;--card2:#24264a;--text:#f7f5ff;--muted:#b9bbd4;--accent:#ffd166;--good:#74e0a5;--bad:#ff8b8b;--blue:#8ab4ff}
 *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:linear-gradient(#111329,#17152c);color:var(--text);min-height:100vh}
@@ -20,29 +20,51 @@
 </div>
 <script>
 const $=s=>document.querySelector(s);
-let state=JSON.parse(localStorage.getItem("toeicQuestV01")||'{"xp":0,"levelDone":false,"day1Done":false,"skills":{}}');
+let state=JSON.parse(localStorage.getItem("toeicQuestV01")||'{"xp":0,"coins":0,"levelDone":false,"day1Done":false,"skills":{},"inventory":[],"equipped":"🗡️ Wooden Sword"}');
+state.coins=state.coins||0; state.inventory=state.inventory||[]; state.equipped=state.equipped||"🗡️ Wooden Sword";
 let session={score:0,combo:0,maxCombo:0,answers:[],idx:0};
 function save(){localStorage.setItem("toeicQuestV01",JSON.stringify(state)); $("#xpTop").textContent=state.xp}
+function playerLevel(){return Math.floor(state.xp/100)+1}
+function titleForLevel(l){if(l>=10)return "TOEIC KNIGHT";if(l>=7)return "BUSINESS ADVENTURER";if(l>=4)return "WORD FIGHTER";return "ENGLISH ROOKIE"}
+function nextLevelXP(){return playerLevel()*100}
+const shopItems=[
+ {name:"🛡️ Office Shield",cost:40},{name:"🗡️ Silver Sword",cost:70},{name:"👔 Business Armor",cost:100},{name:"🦉 Study Owl",cost:140},{name:"🐉 Mini Dragon",cost:200}
+];
+function shop(){
+ shell(`<div class="card hero"><div class="emoji">🎒</div><div class="eyebrow">ADVENTURE SHOP</div><div class="title">装備を集めよう</div><div class="sub">学習で手に入れたコインを、冒険者の見た目に使えるよ。学習の難易度には影響しません。</div><div class="pill" style="display:inline-block;margin-top:12px">🪙 ${state.coins} COINS</div></div>
+ ${shopItems.map((it,i)=>{let own=state.inventory.includes(it.name),eq=state.equipped===it.name;return `<div class="card"><div class="q" style="font-size:20px">${it.name}</div><div class="small">${own?(eq?"装備中":"購入済み"):`🪙 ${it.cost}`}</div><button class="btn ${own?'secondary':''}" onclick="buyItem(${i})">${eq?"装備中 ✓":own?"装備する":`購入する 🪙${it.cost}`}</button></div>`}).join("")}
+ <button class="btn secondary" onclick="home()">🏠 ホームへ</button>`)
+}
+function buyItem(i){let it=shopItems[i];if(state.inventory.includes(it.name)){state.equipped=it.name;save();return shop()}if(state.coins<it.cost){alert("コインが足りないよ。QUESTで英語を学んで集めよう！");return}state.coins-=it.cost;state.inventory.push(it.name);state.equipped=it.name;save();shop()}
+
 function speak(t){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.82;speechSynthesis.speak(u)}
 function shell(inner){$("#screen").innerHTML=inner;save();scrollTo(0,0)}
 function home(){
- shell(`<div class="card hero"><div class="emoji">🏰</div><div class="eyebrow">YOUR JOURNEY BEGINS</div><div class="title">TOEIC 600への冒険</div>
+ shell(`<div class="card hero"><div class="emoji">🏰</div><div class="eyebrow">YOUR JOURNEY BEGINS</div><div class="title">TOEIC 675への冒険</div>
  <div class="sub">英語を「覚える」だけじゃない。<br>見て、思い出して、文脈で理解して、音でわかる力を育てよう。</div>
  ${!state.levelDone?`<button class="btn" onclick="startCheck()">🧪 LEVEL CHECKを始める</button>`:
  !state.day1Done?`<button class="btn" onclick="dayIntro()">⚔️ DAY 1を始める</button>`:
- `<button class="btn" onclick="dayIntro()">🔁 DAY 1をもう一度</button>`}
+ `<button class="btn" onclick="dayIntro()">🔁 DAY 1をもう一度</button>
+ <button class="btn secondary" onclick="startDay(2)">DAY 2｜Meeting Mission</button>
+ <button class="btn secondary" onclick="startDay(3)">DAY 3｜First Deadline</button>
+ <button class="btn secondary" onclick="startDay(4)">DAY 4｜Phone Call Panic</button>
+ <button class="btn secondary" onclick="startDay(5)">DAY 5｜Business Trip</button>
+ <button class="btn secondary" onclick="startDay(6)">DAY 6｜Customer Quest</button>
+ <button class="btn secondary" onclick="startDay(7)">DAY 7｜Week 1 Boss Raid 👑</button>`}
  <div class="small" style="margin-top:14px">学習時間の目安：10〜15分</div></div>
- <div class="stats"><div class="stat"><span class="small">GOAL</span><b>TOEIC 600</b></div><div class="stat"><span class="small">TOTAL XP</span><b>${state.xp}</b></div></div>`)
+ <div class="card"><div class="eyebrow">PLAYER PROFILE</div><div style="display:flex;align-items:center;gap:14px;margin-top:10px"><div style="font-size:44px">${state.equipped.split(" ")[0]}</div><div><div class="small">${titleForLevel(playerLevel())}</div><div style="font-size:25px;font-weight:900">PLAYER Lv.${playerLevel()}</div><div class="small">${state.equipped}</div></div></div><div class="progress"><div class="bar" style="width:${(state.xp%100)}%"></div></div><div class="small">次のLEVELまで ${100-(state.xp%100)} XP</div></div>
+ <div class="stats"><div class="stat"><span class="small">GOAL</span><b>TOEIC 675</b></div><div class="stat"><span class="small">COINS</span><b>🪙 ${state.coins}</b></div></div>
+ <button class="btn secondary" onclick="shop()">🎒 SHOPを見る</button>`)
 }
 const check=[
- {skill:"Vocabulary",q:"「予定・日程」に最も近い単語は？",a:["schedule","customer","office","report"],c:0},
- {skill:"Vocabulary",q:"available の意味は？",a:["満足させる","利用できる・空いている","提出する","出席する"],c:1},
- {skill:"Grammar",q:"Mr. Brown ___ in Tokyo.",a:["work","works","working","worked"],c:1},
- {skill:"Grammar",q:"We ___ a meeting tomorrow.",a:["have","has","having","had"],c:0},
- {skill:"Listening",audio:"The meeting starts at nine.",q:"🔊 音声を聞いてください。会議は何時から？",a:["8時","9時","10時","11時"],c:1},
- {skill:"Listening",audio:"Where is the conference room?",q:"🔊 何について尋ねていますか？",a:["時間","場所","人物","料金"],c:1},
- {skill:"Reading",q:"“Please submit the report by Friday.” 何を金曜日までにする？",a:["会議に出る","報告書を提出する","電話する","予約する"],c:1},
- {skill:"Reading",q:"“The office will be closed on Monday.” 正しい内容は？",a:["月曜はオフィスが休み","月曜に会議","月曜に開業","月曜に出張"],c:0}
+ {skill:"Vocabulary",q:"「予定・日程」に最も近い単語は？",a:["schedule","customer","office","report"],c:0,ex:"schedule = 予定・日程。meeting schedule（会議の日程）のように使うよ。"},
+ {skill:"Vocabulary",q:"available の意味は？",a:["満足させる","利用できる・空いている","提出する","出席する"],c:1,ex:"available = 利用できる・空いている。人の予定や、物・サービスが利用可能なときに使うよ。",audio:"The manager is available today."},
+ {skill:"Grammar",q:"Mr. Brown ___ in Tokyo.",a:["work","works","working","worked"],c:1,ex:"Mr. Brown は he と同じ扱い。現在の習慣・事実なら動詞に -s をつけて works。"},
+ {skill:"Grammar",q:"We ___ a meeting tomorrow.",a:["have","has","having","had"],c:0,ex:"主語が We のときは have。has は he / she / it などで使うよ。"},
+ {skill:"Listening",audio:"The meeting starts at nine.",q:"🔊 音声を聞いてください。会議は何時から？",a:["8時","9時","10時","11時"],c:1,ex:"The meeting starts at nine. → 会議は9時に始まります。at nine が時刻の手がかり。"},
+ {skill:"Listening",audio:"Where is the conference room?",q:"🔊 何について尋ねていますか？",a:["時間","場所","人物","料金"],c:1,ex:"Where は「どこ」。conference room（会議室）の場所を尋ねているよ。"},
+ {skill:"Reading",q:"“Please submit the report by Friday.” 何を金曜日までにする？",a:["会議に出る","報告書を提出する","電話する","予約する"],c:1,ex:"submit = 提出する、by Friday = 金曜日までに。"},
+ {skill:"Reading",q:"“The office will be closed on Monday.” 正しい内容は？",a:["月曜はオフィスが休み","月曜に会議","月曜に開業","月曜に出張"],c:0,ex:"be closed = 閉まっている・休業している。on Monday = 月曜日に。"}
 ];
 function startCheck(){session={score:0,answers:[],idx:0};renderCheck()}
 function renderCheck(){
@@ -51,7 +73,15 @@ function renderCheck(){
  <div class="card">${x.audio?`<div class="center"><button class="speaker" onclick='speak(${JSON.stringify(x.audio)})'>🔊</button></div>`:""}<div class="q">${x.q}</div>
  ${x.a.map((a,i)=>`<button class="btn answer" onclick="answerCheck(${i})">${String.fromCharCode(65+i)}. ${a}</button>`).join("")}</div>`)
 }
-function answerCheck(i){let x=check[session.idx];session.answers.push({skill:x.skill,ok:i===x.c});session.idx++;renderCheck()}
+function answerCheck(i){
+ let x=check[session.idx],ok=i===x.c;
+ session.answers.push({skill:x.skill,ok});
+ document.querySelectorAll(".answer").forEach((b,j)=>{b.disabled=true;if(j===x.c)b.classList.add("correct");if(j===i&&!ok)b.classList.add("wrong")});
+ let audioBtn=x.audio?`<button class="btn secondary" onclick='speak(${JSON.stringify(x.audio)})'>🔊 もう一度聞く</button>`:"";
+ $("#answers")?.remove;
+ const card=document.querySelector(".card");
+ card.insertAdjacentHTML("beforeend",`<div class="feedback"><b class="${ok?'good':'bad'}">${ok?'⚡ CORRECT!':'❌ MISS!'}</b><br>${ok?'正解！ ':`正解：<b>${x.a[x.c]}</b><br>`}${x.ex}</div>${audioBtn}<button class="btn" onclick="session.idx++;renderCheck()">次へ →</button>`);
+}
 function checkResult(){
  let skills={};["Vocabulary","Grammar","Listening","Reading"].forEach(k=>{let a=session.answers.filter(x=>x.skill===k);skills[k]=a.filter(x=>x.ok).length});
  state.skills=skills;state.levelDone=true;state.xp+=20;save();
@@ -93,15 +123,105 @@ function renderBattle(){
 }
 function answerBattle(i){
  let x=battle[session.idx],ok=i===x.c;document.querySelectorAll(".answer").forEach((b,j)=>{b.disabled=true;if(j===x.c)b.classList.add("correct");if(j===i&&!ok)b.classList.add("wrong")});
- if(ok){session.score++;session.combo++;session.maxCombo=Math.max(session.maxCombo,session.combo);state.xp+=10}else session.combo=0;
- $("#fb").innerHTML=`<div class="feedback"><b class="${ok?'good':'bad'}">${ok?'⚡ NICE! +10 XP':'💥 ここで覚えよう！'}</b><br>${x.ex}</div><button class="btn" onclick="session.idx++;renderBattle()">次へ →</button>`;save()
+ if(ok){session.score++;session.combo++;session.maxCombo=Math.max(session.maxCombo,session.combo);state.xp+=10;state.coins+=2}else session.combo=0;
+ $("#fb").innerHTML=`<div class="feedback"><b class="${ok?'good':'bad'}">${ok?'⚡ NICE! +10 XP / 🪙 +2':'💥 ここで覚えよう！'}</b><br>${x.ex}</div><button class="btn" onclick="session.idx++;renderBattle()">次へ →</button>`;save()
+}
+
+const dailyPlans={
+2:{title:"THE MEETING MISSION 📅",words:[
+ ["meeting","会議","We have a meeting at ten."],["appointment","予約・約束","I have an appointment this afternoon."],["postpone","延期する","They postponed the meeting."],["prepare","準備する","Please prepare the documents."],["document","書類・文書","Please read this document."]
+],battle:[
+ {type:"🔁 MEMORY",audio:"The manager is available this afternoon.",q:"マネージャーが空いているのは？",a:["今朝","今日の午後","明日","金曜"],c:1,ex:"Day 1の available が音で再登場。"},
+ {type:"⚔️ RECALL",q:"postpone の意味は？",a:["延期する","提出する","参加する","満足させる"],c:0,ex:"postpone = 延期する。"},
+ {type:"🧩 CONTEXT",q:"Please ___ the documents before the meeting.",a:["prepare","employee","available","conference"],c:0,ex:"prepare = 準備する。"},
+ {type:"🎧 LISTENING",audio:"I have an appointment at three.",q:"予定は何時？",a:["1時","2時","3時","4時"],c:2,ex:"at three = 3時に。"},
+ {type:"🎧 PART 2 PREP",audio:"When will the meeting start?",q:"最も自然な応答は？",a:["At ten o'clock.","In the meeting room.","With Ms. Lee.","Yes, I do."],c:0,ex:"When は時間を尋ねるので At ten o'clock. が自然。"},
+ {type:"👑 BOSS",q:"She will ___ the conference tomorrow.",a:["attend","schedule","employee","available"],c:0,ex:"attend the conference = 会議に参加する。"}
+]},
+3:{title:"THE FIRST DEADLINE ⏳",words:[
+ ["customer","顧客","The customer called this morning."],["order","注文","We received your order."],["report","報告書","I finished the report."],["submit","提出する","Please submit the report today."],["deadline","締め切り","The deadline is Friday."]
+],battle:[
+ {type:"🔁 MEMORY",q:"「予定・日程」は？",a:["schedule","document","customer","deadline"],c:0,ex:"Day 1の schedule。"},
+ {type:"🔁 MEMORY",audio:"Please prepare the documents.",q:"何をするよう頼まれている？",a:["書類を準備する","会議を延期する","注文する","電話する"],c:0,ex:"Day 2の prepare + documents。"},
+ {type:"⚔️ RECALL",q:"submit の意味は？",a:["延期する","提出する","出席する","注文する"],c:1,ex:"submit = 提出する。"},
+ {type:"🧩 CONTEXT",q:"The ___ is Friday.",a:["deadline","customer","order","employee"],c:0,ex:"deadline = 締め切り。"},
+ {type:"🎧 LISTENING",audio:"The customer placed an order yesterday.",q:"顧客が昨日したことは？",a:["注文した","会議に出た","報告書を出した","予約を延期した"],c:0,ex:"place an order = 注文する。"},
+ {type:"👑 BOSS",audio:"Did you finish the report? Not yet. I'll submit it this afternoon.",q:"午後にすることは？",a:["報告書を提出する","会議に参加する","顧客に電話する","注文を変更する"],c:0,ex:"submit the report = 報告書を提出する。"}
+]},
+4:{title:"PHONE CALL PANIC 📞",words:[
+ ["contact","連絡する","Please contact the customer."],["message","伝言・メッセージ","Can I leave a message?"],["return","戻る・返す","She will return at two."],["confirm","確認する","Please confirm your appointment."],["cancel","キャンセルする","The meeting was canceled."]
+],battle:[
+ {type:"🔁 MEMORY",audio:"The conference starts at nine.",q:"何が9時に始まる？",a:["会議","注文","電話","締め切り"],c:0,ex:"Day 1の conference を音で復習。"},
+ {type:"🔁 MEMORY",q:"Please ___ the report by Friday.",a:["submit","attend","available","employee"],c:0,ex:"Day 3の submit。"},
+ {type:"⚔️ RECALL",q:"confirm の意味は？",a:["確認する","延期する","準備する","満足させる"],c:0,ex:"confirm = 確認する。"},
+ {type:"🎧 LISTENING",audio:"Can I leave a message for Mr. Brown?",q:"話し手がしたいことは？",a:["伝言を残す","会議を予約する","注文する","帰宅する"],c:0,ex:"leave a message = 伝言を残す。"},
+ {type:"🧩 CONTEXT",q:"Please ___ the customer this afternoon.",a:["contact","deadline","document","conference"],c:0,ex:"contact = 連絡する。"},
+ {type:"👑 BOSS",audio:"The meeting has been canceled.",q:"会議はどうなった？",a:["中止になった","延期になった","始まった","終わった"],c:0,ex:"be canceled = キャンセル・中止される。"}
+]},
+5:{title:"BUSINESS TRIP ✈️",words:[
+ ["reservation","予約","I made a hotel reservation."],["departure","出発","The departure time is seven."],["arrive","到着する","We will arrive at noon."],["delay","遅延・遅らせる","The train is delayed."],["expense","経費","Please submit your travel expenses."]
+],battle:[
+ {type:"🔁 MEMORY",q:"appointment に最も近い意味は？",a:["予約・約束","従業員","締め切り","注文"],c:0,ex:"Day 2の appointment。"},
+ {type:"⚔️ RECALL",q:"arrive の意味は？",a:["出発する","到着する","延期する","確認する"],c:1,ex:"arrive = 到着する。"},
+ {type:"🎧 LISTENING",audio:"The train will arrive at noon.",q:"列車が到着するのは？",a:["午前9時","正午","午後3時","夜"],c:1,ex:"at noon = 正午に。"},
+ {type:"🧩 CONTEXT",q:"The flight is ___ by thirty minutes.",a:["delayed","available","attended","submitted"],c:0,ex:"be delayed = 遅れている。"},
+ {type:"🎧 PART 2 PREP",audio:"When is the departure time?",q:"最も自然な応答は？",a:["At seven.","At the airport.","By train.","Yes, it is."],c:0,ex:"When → 時刻で答える。"},
+ {type:"👑 BOSS",q:"Please ___ your travel expenses.",a:["submit","arrive","conference","customer"],c:0,ex:"submit expenses = 経費を提出する。"}
+]},
+6:{title:"CUSTOMER QUEST 🤝",words:[
+ ["request","依頼・要望","We received a customer request."],["provide","提供する","We provide technical support."],["service","サービス","Thank you for using our service."],["satisfy","満足させる","We want to satisfy our customers."],["issue","問題・課題","We found an issue with the order."]
+],battle:[
+ {type:"🔁 MEMORY",audio:"Please contact the customer.",q:"誰に連絡する？",a:["顧客","従業員","会議","ホテル"],c:0,ex:"Day 4の contact + customer。"},
+ {type:"⚔️ RECALL",q:"satisfy の意味は？",a:["満足させる","延期する","到着する","予約する"],c:0,ex:"satisfy = 満足させる。customer satisfaction（顧客満足）にもつながる語。"},
+ {type:"🧩 CONTEXT",q:"We ___ technical support.",a:["provide","arrive","cancel","deadline"],c:0,ex:"provide = 提供する。"},
+ {type:"🎧 LISTENING",audio:"We found an issue with your order.",q:"何に問題があった？",a:["注文","会議室","出発時刻","従業員"],c:0,ex:"issue = 問題、order = 注文。"},
+ {type:"🧩 CONTEXT",q:"Thank you for using our ___.",a:["service","deadline","employee","departure"],c:0,ex:"service = サービス。"},
+ {type:"👑 BOSS",audio:"We want to satisfy our customers.",q:"会社がしたいことは？",a:["顧客を満足させる","会議を延期する","書類を提出する","出張する"],c:0,ex:"satisfy our customers = 顧客を満足させる。"}
+]},
+7:{title:"WEEK 1 BOSS RAID 👑",words:[],battle:[
+ {type:"👑 WEEK BOSS",audio:"Is the manager available this afternoon?",q:"何を確認している？",a:["午後にマネージャーが空いているか","会議室の場所","注文の金額","締め切り"],c:0,ex:"Day 1 available の定着チェック。"},
+ {type:"👑 WEEK BOSS",audio:"When will the meeting start?",q:"最も自然な応答は？",a:["At ten.","In Room A.","With Ken.","A report."],c:0,ex:"When → 時間。"},
+ {type:"👑 WEEK BOSS",q:"Please ___ the report by Friday.",a:["submit","arrive","satisfy","employee"],c:0,ex:"submit the report = 報告書を提出する。"},
+ {type:"👑 WEEK BOSS",audio:"The flight has been delayed by thirty minutes.",q:"フライトはどうなった？",a:["30分遅れた","30分早まった","中止された","到着した"],c:0,ex:"be delayed by thirty minutes = 30分遅れる。"},
+ {type:"👑 WEEK BOSS",q:"We want to ___ our customers.",a:["satisfy","deadline","conference","departure"],c:0,ex:"satisfy our customers = 顧客を満足させる。"},
+ {type:"👑 WEEK BOSS",audio:"Can I leave a message for Ms. Lee?",q:"話し手の目的は？",a:["伝言を残す","予約を取り消す","書類を準備する","注文する"],c:0,ex:"leave a message = 伝言を残す。"},
+ {type:"👑 WEEK BOSS",q:"The meeting was ___ until Friday.",a:["postponed","employee","available","expense"],c:0,ex:"be postponed until Friday = 金曜日まで延期される。"},
+ {type:"👑 WEEK BOSS",audio:"Please confirm your hotel reservation.",q:"確認するものは？",a:["ホテルの予約","会議の日程","顧客の注文","経費"],c:0,ex:"confirm a reservation = 予約を確認する。"}
+]}
+};
+let daily={day:0,learnIdx:0};
+function startDay(day){
+ daily={day,learnIdx:0}; session={score:0,combo:0,maxCombo:0,idx:0};
+ const p=dailyPlans[day];
+ shell(`<div class="card hero"><div class="emoji">${day===7?'👑':'🗺️'}</div><div class="eyebrow">DAY ${day}</div><div class="title">${p.title}</div><div class="sub">${day===7?'1週間の記憶を、意味・文脈・音で総復習。':'新しい英語を学びながら、前の日の記憶も呼び戻そう。'}</div><button class="btn" onclick="${p.words.length?'renderDailyLearn()':'renderDailyBattle()'}">QUEST START ⚔️</button></div>`)
+}
+function renderDailyLearn(){
+ const p=dailyPlans[daily.day];
+ if(daily.learnIdx>=p.words.length){session.idx=0;return renderDailyBattle()}
+ let [w,m,e]=p.words[daily.learnIdx];
+ shell(`<div class="eyebrow">🌱 ENCOUNTER ${daily.learnIdx+1}/${p.words.length}</div><div class="progress"><div class="bar" style="width:${daily.learnIdx/p.words.length*100}%"></div></div><div class="card center"><div class="small">NEW WORD</div><div class="word">${w}</div><button class="speaker" onclick='speak(${JSON.stringify(w)})'>🔊</button><h3>${m}</h3><div class="example">${e}<br><button class="btn secondary" onclick='speak(${JSON.stringify(e)})'>🔊 例文を聞く</button></div><button class="btn" onclick="daily.learnIdx++;renderDailyLearn()">次へ →</button></div>`)
+}
+function renderDailyBattle(){
+ const p=dailyPlans[daily.day],x=p.battle[session.idx]; if(!x)return dailyResult();
+ shell(`<div class="eyebrow">${x.type} ${session.idx+1}/${p.battle.length}</div><div class="progress"><div class="bar" style="width:${session.idx/p.battle.length*100}%"></div></div><div class="pill" style="display:inline-block">🔥 <span class="combo">${session.combo} COMBO</span></div><div class="card">${x.audio?`<div class="center"><button class="speaker" onclick='speak(${JSON.stringify(x.audio)})'>🔊</button><div class="small">音から意味をつかもう。</div></div>`:""}<div class="q">${x.q}</div>${x.a.map((a,i)=>`<button class="btn answer" onclick="answerDaily(${i})">${String.fromCharCode(65+i)}. ${a}</button>`).join("")}<div id="fb"></div></div>`)
+}
+function answerDaily(i){
+ const x=dailyPlans[daily.day].battle[session.idx],ok=i===x.c;
+ document.querySelectorAll(".answer").forEach((b,j)=>{b.disabled=true;if(j===x.c)b.classList.add("correct");if(j===i&&!ok)b.classList.add("wrong")});
+ if(ok){session.score++;session.combo++;session.maxCombo=Math.max(session.maxCombo,session.combo);state.xp+=10;state.coins+=2}else session.combo=0;
+ $("#fb").innerHTML=`<div class="feedback"><b class="${ok?'good':'bad'}">${ok?'⚡ NICE! +10 XP / 🪙 +2':'❌ MISS — ここで覚えよう'}</b><br>${x.ex}</div>${x.audio?`<button class="btn secondary" onclick='speak(${JSON.stringify(x.audio)})'>🔊 もう一度聞く</button>`:""}<button class="btn" onclick="session.idx++;renderDailyBattle()">次へ →</button>`; save()
+}
+function dailyResult(){
+ const p=dailyPlans[daily.day]; state.xp+=30; state.coins+=10; state.completedDays=state.completedDays||[]; if(!state.completedDays.includes(daily.day))state.completedDays.push(daily.day); save();
+ const next=daily.day<7?daily.day+1:null;
+ shell(`<div class="card hero"><div class="emoji">${daily.day===7?'🏆':'✨'}</div><div class="eyebrow">QUEST CLEAR!</div><div class="title">DAY ${daily.day} 攻略！</div><div class="sub">${daily.day===7?'WEEK 1 COMPLETE！ 1週間分を思い出す練習まで完了。':'新しい内容と、過去の記憶の両方を鍛えたよ。'}</div></div><div class="stats"><div class="stat"><span class="small">BATTLE</span><b>${session.score}/${p.battle.length}</b></div><div class="stat"><span class="small">MAX COMBO</span><b>🔥 ${session.maxCombo}</b></div></div>${next?`<button class="btn" onclick="startDay(${next})">DAY ${next}をプレイ →</button>`:""}<button class="btn secondary" onclick="home()">🏠 ホームへ</button>`)
 }
 function result(){
- state.day1Done=true;state.xp+=30;save();
+ state.day1Done=true;state.xp+=30;state.coins+=10;save();
  shell(`<div class="card hero"><div class="emoji">🏆</div><div class="eyebrow">QUEST CLEAR!</div><div class="title">DAY 1 攻略！</div><div class="sub">今日出会った英語を、意味・文脈・音の3方向から練習したよ。</div></div>
- <div class="stats"><div class="stat"><span class="small">BATTLE</span><b>${session.score}/${battle.length}</b></div><div class="stat"><span class="small">MAX COMBO</span><b>🔥 ${session.maxCombo}</b></div><div class="stat"><span class="small">WORDS</span><b>5</b></div><div class="stat"><span class="small">TOTAL XP</span><b>${state.xp}</b></div></div>
+ <div class="stats"><div class="stat"><span class="small">BATTLE</span><b>${session.score}/${battle.length}</b></div><div class="stat"><span class="small">MAX COMBO</span><b>🔥 ${session.maxCombo}</b></div><div class="stat"><span class="small">WORDS</span><b>5</b></div><div class="stat"><span class="small">TOTAL XP</span><b>${state.xp}</b></div><div class="stat"><span class="small">COINS</span><b>🪙 ${state.coins}</b></div></div>
  <div class="card"><b>🧠 今日の5語</b><p class="sub">available / conference / schedule / attend / employee</p><div class="small">一度の正解ではMASTEREDにはならないよ。次回、形を変えて再登場させるのが本番。</div></div>
- <button class="btn" onclick="home()">🏠 ホームへ</button><button class="btn secondary" onclick="if(confirm('この端末の進捗をリセットしますか？')){localStorage.removeItem('toeicQuestV01');location.reload()}">進捗をリセット</button>`)
+ <button class="btn" onclick="startDay(2)">DAY 2をプレイ →</button><button class="btn secondary" onclick="home()">🏠 ホームへ</button><button class="btn secondary" onclick="if(confirm('この端末の進捗をリセットしますか？')){localStorage.removeItem('toeicQuestV01');location.reload()}">進捗をリセット</button>`)
 }
 home();
 </script>
