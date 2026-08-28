@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15152b">
+<title>TOEIC QUEST v0.1</title>
+<style>
+:root{--bg:#101124;--card:#1b1d38;--card2:#24264a;--text:#f7f5ff;--muted:#b9bbd4;--accent:#ffd166;--good:#74e0a5;--bad:#ff8b8b;--blue:#8ab4ff}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:linear-gradient(#111329,#17152c);color:var(--text);min-height:100vh}
+.app{max-width:520px;margin:auto;padding:18px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.brand{font-weight:900;letter-spacing:.08em}.pill{background:#2b2d52;padding:7px 10px;border-radius:999px;font-size:13px}
+.card{background:var(--card);border:1px solid #34365e;border-radius:22px;padding:20px;box-shadow:0 12px 35px #0004;margin:12px 0}.hero{text-align:center;padding:28px 20px}.emoji{font-size:54px}.eyebrow{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.12em}.title{font-size:28px;font-weight:900;margin:8px 0}.sub{color:var(--muted);line-height:1.7}.btn{width:100%;border:0;border-radius:16px;padding:15px 16px;margin-top:12px;font-size:16px;font-weight:850;background:var(--accent);color:#242018}.btn.secondary{background:#30335a;color:var(--text)}.btn.answer{background:var(--card2);color:var(--text);text-align:left;border:1px solid #3a3d67}.btn.answer.correct{border-color:var(--good);background:#214638}.btn.answer.wrong{border-color:var(--bad);background:#512d3b}
+.progress{height:9px;background:#292b4c;border-radius:99px;overflow:hidden;margin:10px 0 18px}.bar{height:100%;background:var(--accent);width:0;transition:.3s}.q{font-size:22px;font-weight:850;line-height:1.45;margin:12px 0}.example{background:#111329;border-radius:14px;padding:14px;margin:14px 0;line-height:1.6}.feedback{margin-top:14px;padding:13px;border-radius:14px;background:#262949;line-height:1.6}.good{color:var(--good)}.bad{color:var(--bad)}.hidden{display:none!important}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#24264a;border-radius:16px;padding:14px}.stat b{display:block;font-size:23px;margin-top:4px}.small{font-size:13px;color:var(--muted)}.skill{margin:14px 0}.skillrow{display:flex;justify-content:space-between}.skillbar{height:8px;background:#303255;border-radius:99px;overflow:hidden;margin-top:7px}.skillbar i{display:block;height:100%;background:var(--blue)}.combo{color:var(--accent);font-weight:900}.center{text-align:center}.word{font-size:32px;font-weight:950;letter-spacing:.02em}.speaker{font-size:24px;background:#30335a;color:white;border:0;border-radius:50%;width:48px;height:48px}.tag{display:inline-block;padding:5px 8px;border-radius:9px;background:#30335a;color:#dfe2ff;font-size:12px;margin:3px}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top"><div class="brand">⚔️ TOEIC QUEST</div><div class="pill">⭐ <span id="xpTop">0</span> XP</div></div>
+ <div id="screen"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+let state=JSON.parse(localStorage.getItem("toeicQuestV01")||'{"xp":0,"levelDone":false,"day1Done":false,"skills":{}}');
+let session={score:0,combo:0,maxCombo:0,answers:[],idx:0};
+function save(){localStorage.setItem("toeicQuestV01",JSON.stringify(state)); $("#xpTop").textContent=state.xp}
+function speak(t){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.82;speechSynthesis.speak(u)}
+function shell(inner){$("#screen").innerHTML=inner;save();scrollTo(0,0)}
+function home(){
+ shell(`<div class="card hero"><div class="emoji">🏰</div><div class="eyebrow">YOUR JOURNEY BEGINS</div><div class="title">TOEIC 600への冒険</div>
+ <div class="sub">英語を「覚える」だけじゃない。<br>見て、思い出して、文脈で理解して、音でわかる力を育てよう。</div>
+ ${!state.levelDone?`<button class="btn" onclick="startCheck()">🧪 LEVEL CHECKを始める</button>`:
+ !state.day1Done?`<button class="btn" onclick="dayIntro()">⚔️ DAY 1を始める</button>`:
+ `<button class="btn" onclick="dayIntro()">🔁 DAY 1をもう一度</button>`}
+ <div class="small" style="margin-top:14px">学習時間の目安：10〜15分</div></div>
+ <div class="stats"><div class="stat"><span class="small">GOAL</span><b>TOEIC 600</b></div><div class="stat"><span class="small">TOTAL XP</span><b>${state.xp}</b></div></div>`)
+}
+const check=[
+ {skill:"Vocabulary",q:"「予定・日程」に最も近い単語は？",a:["schedule","customer","office","report"],c:0},
+ {skill:"Vocabulary",q:"available の意味は？",a:["満足させる","利用できる・空いている","提出する","出席する"],c:1},
+ {skill:"Grammar",q:"Mr. Brown ___ in Tokyo.",a:["work","works","working","worked"],c:1},
+ {skill:"Grammar",q:"We ___ a meeting tomorrow.",a:["have","has","having","had"],c:0},
+ {skill:"Listening",audio:"The meeting starts at nine.",q:"🔊 音声を聞いてください。会議は何時から？",a:["8時","9時","10時","11時"],c:1},
+ {skill:"Listening",audio:"Where is the conference room?",q:"🔊 何について尋ねていますか？",a:["時間","場所","人物","料金"],c:1},
+ {skill:"Reading",q:"“Please submit the report by Friday.” 何を金曜日までにする？",a:["会議に出る","報告書を提出する","電話する","予約する"],c:1},
+ {skill:"Reading",q:"“The office will be closed on Monday.” 正しい内容は？",a:["月曜はオフィスが休み","月曜に会議","月曜に開業","月曜に出張"],c:0}
+];
+function startCheck(){session={score:0,answers:[],idx:0};renderCheck()}
+function renderCheck(){
+ let x=check[session.idx]; if(!x)return checkResult();
+ shell(`<div class="eyebrow">LEVEL CHECK ${session.idx+1}/${check.length}</div><div class="progress"><div class="bar" style="width:${session.idx/check.length*100}%"></div></div>
+ <div class="card">${x.audio?`<div class="center"><button class="speaker" onclick='speak(${JSON.stringify(x.audio)})'>🔊</button></div>`:""}<div class="q">${x.q}</div>
+ ${x.a.map((a,i)=>`<button class="btn answer" onclick="answerCheck(${i})">${String.fromCharCode(65+i)}. ${a}</button>`).join("")}</div>`)
+}
+function answerCheck(i){let x=check[session.idx];session.answers.push({skill:x.skill,ok:i===x.c});session.idx++;renderCheck()}
+function checkResult(){
+ let skills={};["Vocabulary","Grammar","Listening","Reading"].forEach(k=>{let a=session.answers.filter(x=>x.skill===k);skills[k]=a.filter(x=>x.ok).length});
+ state.skills=skills;state.levelDone=true;state.xp+=20;save();
+ shell(`<div class="card hero"><div class="emoji">🧭</div><div class="eyebrow">LEVEL CHECK COMPLETE</div><div class="title">冒険の準備完了！</div><div class="sub">これはTOEICスコアの推定ではなく、最初の学習バランスを決めるためのチェックだよ。</div></div>
+ <div class="card">${Object.entries(skills).map(([k,v])=>`<div class="skill"><div class="skillrow"><b>${k}</b><span>Lv.${v+1}</span></div><div class="skillbar"><i style="width:${(v+1)*33}%"></i></div></div>`).join("")}</div>
+ <button class="btn" onclick="dayIntro()">DAY 1へ ⚔️</button>`)
+}
+const learn=[
+ ["available","利用できる・空いている","The manager is available this afternoon."],
+ ["conference","会議・会議イベント","She will attend the conference."],
+ ["schedule","予定・日程","Please check the meeting schedule."],
+ ["attend","出席する・参加する","I will attend the meeting tomorrow."],
+ ["employee","従業員","Every employee has an ID card."]
+];
+let learnIdx=0;
+function dayIntro(){learnIdx=0;session={score:0,combo:0,maxCombo:0};shell(`<div class="card hero"><div class="emoji">🏢</div><div class="eyebrow">DAY 1</div><div class="title">FIRST DAY AT THE OFFICE</div><div class="sub">今日のミッション：仕事でよく出会う5つの英語を攻略せよ。</div><div><span class="tag">LEARN</span><span class="tag">RECALL</span><span class="tag">CONTEXT</span><span class="tag">LISTEN</span></div><button class="btn" onclick="renderLearn()">QUEST START ⚔️</button></div>`)}
+function renderLearn(){
+ if(learnIdx>=learn.length){session.idx=0;return renderBattle()}
+ let [w,m,e]=learn[learnIdx];
+ shell(`<div class="eyebrow">🌱 ENCOUNTER ${learnIdx+1}/${learn.length}</div><div class="progress"><div class="bar" style="width:${learnIdx/learn.length*100}%"></div></div>
+ <div class="card center"><div class="small">NEW WORD</div><div class="word">${w}</div><button class="speaker" onclick='speak(${JSON.stringify(w)})'>🔊</button><h3>${m}</h3><div class="example">${e}<br><button class="btn secondary" onclick='speak(${JSON.stringify(e)})'>🔊 例文を聞く</button></div><button class="btn" onclick="learnIdx++;renderLearn()">覚えた →</button></div>`)
+}
+const battle=[
+ {type:"⚔️ RECALL",q:"available の意味は？",a:["出席する","利用できる・空いている","従業員","予定"],c:1,ex:"The manager is available today."},
+ {type:"⚔️ RECALL",q:"「出席する・参加する」は？",a:["attend","schedule","employee","satisfy"],c:0,ex:"I will attend the meeting."},
+ {type:"🧩 CONTEXT",q:"Please check the meeting ___.",a:["employee","available","schedule","attend"],c:2,ex:"schedule = 予定・日程"},
+ {type:"🧩 CONTEXT",q:"Every ___ has an ID card.",a:["conference","employee","schedule","available"],c:1,ex:"employee = 従業員"},
+ {type:"🎧 LISTENING",audio:"The conference starts at nine.",q:"音声では、何が9時に始まる？",a:["会議","昼食","出張","仕事"],c:0,ex:"conference = 会議"},
+ {type:"🎧 LISTENING",audio:"The manager is available this afternoon.",q:"マネージャーが空いているのは？",a:["今朝","今日の午後","明日","金曜"],c:1,ex:"this afternoon = 今日の午後"},
+ {type:"👑 MINI BOSS",audio:"She will attend the conference tomorrow.",q:"彼女が明日することは？",a:["会議に参加する","予定を変更する","従業員に会う","報告書を書く"],c:0,ex:"attend the conference = 会議に参加する"},
+ {type:"👑 MINI BOSS",q:"The meeting ___ at ten.",a:["start","starts","starting","started"],c:1,ex:"The meeting が主語。現在のことなら starts。"}
+];
+function renderBattle(){
+ let x=battle[session.idx];if(!x)return result();
+ shell(`<div class="eyebrow">${x.type} ${session.idx+1}/${battle.length}</div><div class="progress"><div class="bar" style="width:${session.idx/battle.length*100}%"></div></div>
+ <div class="pill" style="display:inline-block">🔥 <span class="combo">${session.combo} COMBO</span></div>
+ <div class="card">${x.audio?`<div class="center"><button class="speaker" onclick='speak(${JSON.stringify(x.audio)})'>🔊</button><div class="small">英文は表示されません。音から意味をつかもう。</div></div>`:""}<div class="q">${x.q}</div>
+ <div id="answers">${x.a.map((a,i)=>`<button class="btn answer" onclick="answerBattle(${i})">${String.fromCharCode(65+i)}. ${a}</button>`).join("")}</div><div id="fb"></div></div>`)
+}
+function answerBattle(i){
+ let x=battle[session.idx],ok=i===x.c;document.querySelectorAll(".answer").forEach((b,j)=>{b.disabled=true;if(j===x.c)b.classList.add("correct");if(j===i&&!ok)b.classList.add("wrong")});
+ if(ok){session.score++;session.combo++;session.maxCombo=Math.max(session.maxCombo,session.combo);state.xp+=10}else session.combo=0;
+ $("#fb").innerHTML=`<div class="feedback"><b class="${ok?'good':'bad'}">${ok?'⚡ NICE! +10 XP':'💥 ここで覚えよう！'}</b><br>${x.ex}</div><button class="btn" onclick="session.idx++;renderBattle()">次へ →</button>`;save()
+}
+function result(){
+ state.day1Done=true;state.xp+=30;save();
+ shell(`<div class="card hero"><div class="emoji">🏆</div><div class="eyebrow">QUEST CLEAR!</div><div class="title">DAY 1 攻略！</div><div class="sub">今日出会った英語を、意味・文脈・音の3方向から練習したよ。</div></div>
+ <div class="stats"><div class="stat"><span class="small">BATTLE</span><b>${session.score}/${battle.length}</b></div><div class="stat"><span class="small">MAX COMBO</span><b>🔥 ${session.maxCombo}</b></div><div class="stat"><span class="small">WORDS</span><b>5</b></div><div class="stat"><span class="small">TOTAL XP</span><b>${state.xp}</b></div></div>
+ <div class="card"><b>🧠 今日の5語</b><p class="sub">available / conference / schedule / attend / employee</p><div class="small">一度の正解ではMASTEREDにはならないよ。次回、形を変えて再登場させるのが本番。</div></div>
+ <button class="btn" onclick="home()">🏠 ホームへ</button><button class="btn secondary" onclick="if(confirm('この端末の進捗をリセットしますか？')){localStorage.removeItem('toeicQuestV01');location.reload()}">進捗をリセット</button>`)
+}
+home();
+</script>
+</body>
+</html>
